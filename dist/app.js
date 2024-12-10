@@ -42,29 +42,43 @@ require("dotenv/config");
 const http_errors_1 = __importStar(require("http-errors"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
 const cors_1 = __importDefault(require("cors"));
+const auth_route_1 = __importDefault(require("./routes/auth.route"));
 const app = (0, express_1.default)();
-// app.use("/users",UserRoutes)
+app.use(express_1.default.json());
+app.use("/api/auth", auth_route_1.default);
+app.get('/', (req, res, next) => {
+    try {
+        console.log('start get request');
+        res.send('get api');
+    }
+    catch (e) {
+        next(e);
+    }
+});
+//there is no routes match ,execute
 const httpErrorMiddleware = (req, res, next) => {
     console.log('start httperror middleware');
     next((0, http_errors_1.default)(404, 'endpoint not found'));
     console.log('end httperror middleware');
 };
+//handle * error
 const errr = (error, req, res, next) => {
     console.log('start error middleware');
-    console.log(error);
     let errorMessage = "an unknown error message";
     let statusCode = 500;
+    console.log('check its a http error');
     if ((0, http_errors_1.isHttpError)(error)) {
+        console.log('its a http error');
         statusCode = error.status;
         errorMessage = error.message;
     }
-    res.status(statusCode).json({ error: errorMessage });
+    console.log('ready send the response');
+    res.status(statusCode).json({ status: statusCode, error: errorMessage, success: false });
     console.log('end error middleware');
 };
-app.use(express_1.default.json());
-app.use(httpErrorMiddleware);
-app.use(errr);
 app.use((0, cookie_parser_1.default)()); // parse the cookies.
 app.use((0, cors_1.default)({ credentials: true })); //to allow the frontend to communicate with it.
+app.use(httpErrorMiddleware); //use this befor error middleware
+app.use(errr); //this should be last middleware
 exports.default = app;
 //# sourceMappingURL=app.js.map

@@ -2,6 +2,7 @@ import app from "./app"
 import env from "./util/validateEnv"
 import mongoose from "mongoose";
 
+
 const port = env.PORT || 8081;
 mongoose.connect(env.MONGOOSE_CONNECTION_STRING)
     .then(() => {
@@ -13,7 +14,3 @@ mongoose.connect(env.MONGOOSE_CONNECTION_STRING)
     .catch((err) => {
         console.log("failed to connect to MongoDB: " + err)
     })
-
-
-
-
