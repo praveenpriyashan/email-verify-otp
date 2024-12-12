@@ -1,6 +1,5 @@
 import express, {Request, Response, NextFunction} from 'express'
 import "dotenv/config";
-// import UserRoutes from "./routes/UserRoutes"
 import createHttpError, {isHttpError, Unauthorized} from "http-errors";
 import cookieParser from "cookie-parser";
 import cors from "cors"
