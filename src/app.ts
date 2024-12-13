@@ -2,22 +2,24 @@ import express, {Request, Response, NextFunction} from 'express'
 import "dotenv/config";
 import createHttpError, {isHttpError, Unauthorized} from "http-errors";
 import cookieParser from "cookie-parser";
-import cors from "cors"
+// import cors from "cors"
 import authRouter from "./routes/auth.route";
+import userAuth from "./middleware/user.auth.middleware";
 
 const app = express();
+app.use(cookieParser());              // parse the cookies.
 app.use(express.json());
-
+// app.use(cors({credentials: true}))      //to allow the frontend to communicate with it.
 app.use("/api/auth",authRouter)
 
-app.get('/', (req: Request, res: Response, next: NextFunction) => {
-    try {
-        console.log('start get request')
-        res.send('get api')
-    } catch (e) {
-        next(e)
-    }
-})
+// app.get('/', (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         console.log('start get request')
+//         res.send('get api')
+//     } catch (e) {
+//         next(e)
+//     }
+// })
 
 //there is no routes match ,execute
 const httpErrorMiddleware = (req: Request, res: Response, next: NextFunction) => {
@@ -41,8 +43,7 @@ const errr = (error: unknown, req: Request, res: Response, next: NextFunction) =
     console.log('end error middleware')
 }
 
-app.use(cookieParser())                   // parse the cookies.
-app.use(cors({credentials: true}))      //to allow the frontend to communicate with it.
+
 app.use(httpErrorMiddleware)                //use this befor error middleware
 app.use(errr);                                     //this should be last middleware
 

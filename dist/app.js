@@ -40,20 +40,21 @@ const express_1 = __importDefault(require("express"));
 require("dotenv/config");
 const http_errors_1 = __importStar(require("http-errors"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
-const cors_1 = __importDefault(require("cors"));
+// import cors from "cors"
 const auth_route_1 = __importDefault(require("./routes/auth.route"));
 const app = (0, express_1.default)();
+app.use((0, cookie_parser_1.default)()); // parse the cookies.
 app.use(express_1.default.json());
+// app.use(cors({credentials: true}))      //to allow the frontend to communicate with it.
 app.use("/api/auth", auth_route_1.default);
-app.get('/', (req, res, next) => {
-    try {
-        console.log('start get request');
-        res.send('get api');
-    }
-    catch (e) {
-        next(e);
-    }
-});
+// app.get('/', (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         console.log('start get request')
+//         res.send('get api')
+//     } catch (e) {
+//         next(e)
+//     }
+// })
 //there is no routes match ,execute
 const httpErrorMiddleware = (req, res, next) => {
     console.log('start httperror middleware');
@@ -75,8 +76,6 @@ const errr = (error, req, res, next) => {
     res.status(statusCode).json({ status: statusCode, error: errorMessage, success: false });
     console.log('end error middleware');
 };
-app.use((0, cookie_parser_1.default)()); // parse the cookies.
-app.use((0, cors_1.default)({ credentials: true })); //to allow the frontend to communicate with it.
 app.use(httpErrorMiddleware); //use this befor error middleware
 app.use(errr); //this should be last middleware
 exports.default = app;
