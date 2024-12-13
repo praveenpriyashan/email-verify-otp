@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyEmail = exports.sendVerifyOtp = exports.logout = exports.login = exports.register = void 0;
+exports.isAuthenticate = exports.verifyEmail = exports.sendVerifyOtp = exports.logout = exports.login = exports.register = void 0;
 const validateEnv_1 = __importDefault(require("../util/validateEnv"));
 const http_errors_1 = __importDefault(require("http-errors"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
@@ -216,4 +216,14 @@ const verifyEmail = async (req, res, next) => {
     }
 };
 exports.verifyEmail = verifyEmail;
+const isAuthenticate = async (req, res, next) => {
+    try {
+        res.json({ success: true });
+        console.log('user is authenticated');
+    }
+    catch (e) {
+        next(e);
+    }
+};
+exports.isAuthenticate = isAuthenticate;
 //# sourceMappingURL=auth.controller.js.map

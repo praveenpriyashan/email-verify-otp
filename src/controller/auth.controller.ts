@@ -7,9 +7,10 @@ import {transporter} from "../config/nodemailer"
 import dotenv from 'dotenv';
 import UserModel from "../model/user.model";
 
-dotenv.config();
 import {Document} from 'mongoose';
 import {email} from "envalid";
+
+dotenv.config();
 
 interface IUser extends Document {
     name: string;
@@ -21,7 +22,6 @@ interface IUser extends Document {
     resetOtp: string;
     resetOtpExpAt: number;
 }
-
 
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const {name, email, password} = req.body;
@@ -136,7 +136,6 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
     }
 }
 
-
 export const sendVerifyOtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     console.log('start the sent otp function')
     console.log('req.body:', req.body); // Check if the body has the expected data
@@ -227,4 +226,11 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
     }
 }
 
-
+export const isAuthenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+         res.json({success: true});
+         console.log('user is authenticated');
+    } catch (e) {
+        next(e)
+    }
+}

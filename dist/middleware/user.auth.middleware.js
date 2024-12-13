@@ -37,4 +37,5 @@ const userAuth = async (req, res, next) => {
     }
 };
 exports.default = userAuth;
+//req=>cookies=>token=>userid      set the       =>      req.body.userId
 //# sourceMappingURL=user.auth.middleware.js.map

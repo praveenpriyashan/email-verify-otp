@@ -34,3 +34,4 @@ const userAuth = async (req: Request, res: Response, next: NextFunction) => {
     }
 }
 export default userAuth;
+//req=>cookies=>token=>userid      set the       =>      req.body.userId
