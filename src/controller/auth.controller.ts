@@ -1,13 +1,26 @@
 import {NextFunction, Request, Response} from "express";
-import UserModel from "../model/user.model";
 import validateEnv from "../util/validateEnv";
 import createHttpError from "http-errors";
 import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken";
 import {transporter} from "../config/nodemailer"
 import dotenv from 'dotenv';
+import UserModel from "../model/user.model";
 
 dotenv.config();
+import {Document} from 'mongoose';
+import {email} from "envalid";
+
+interface IUser extends Document {
+    name: string;
+    email: string;
+    password: string;
+    isAccountVerified: boolean;
+    verifyOtp: string;
+    verifyOtpExpAt: number;
+    resetOtp: string;
+    resetOtpExpAt: number;
+}
 
 
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -51,16 +64,12 @@ export const register = async (req: Request, res: Response, next: NextFunction):
             text: `
             Hi ${name} !
             wellcome to my email app !
+            your account has been created by email: ${email}
             `
         }
         console.log('sending email start');
-        try {
-            await transporter.sendMail(mailOption);
-            console.log('Email sent successfully');
-        } catch (emailError) {
-            console.error('Failed to send email:', emailError);
-        }
-        console.log('sending  email end');
+        await transporter.sendMail(mailOption);
+        console.log('Email sent successfully');
         res.status(201).json({success: true, user: newUser});
     } catch (e) {
         next(e)
@@ -121,4 +130,63 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
     } catch (e) {
         next(e)
     }
+}
+
+
+export const sendVerifyOtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        const {userId} = req.body;
+        const user = await UserModel.findById(userId) as IUser;
+        if (!user) {
+            throw createHttpError(404, 'User not found');
+        }
+        if (user.isAccountVerified) {
+            return res.json({success: false, message: 'account already verified'});
+        }
+        const otp = String(Math.floor(100000 + Math.random() * 900000))
+        user.verifyOtp = otp;
+        user.verifyOtpExpAt = Date.now() + 1000 * 60 * 60 * 24;
+        await user.save();
+        const mailOption = {
+            from: process.env.SENDER_EMAIL,
+            to: user.email,
+            subject: 'Account verify otp',
+            text: `
+           your verification otp is ${otp}.verify your account using this otp
+            `
+        }
+        await transporter.sendMail(mailOption);
+        res.json({success: true, message: `verification otp sent on ${user.email}`})
+
+    } catch (e) {
+        next(e)
+    }
+}
+
+export const verifyEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const {userId, otp} = req.body;
+    if (!userId || !otp) {
+        throw createHttpError(400, 'missing required details')
+    }
+    try {
+        const user = await UserModel.findById(userId) as IUser;
+        if (!user) {
+            throw createHttpError(404, 'user not found')
+        }
+        if (user.verifyOtp === '' || user.verifyOtp !== otp) {
+            throw createHttpError(404, 'invalid otp')
+        }
+        if (user.verifyOtpExpAt < Date.now()) {
+            throw createHttpError(404, ' OTP expired')
+        }
+        user.isAccountVerified = true;
+        user.verifyOtp = '';
+        user.verifyOtpExpAt = 0;
+        await user.save()
+        res.json({success: true, message: `email : ${email} verified successfully`})
+    } catch (e) {
+        next(e)
+    }
+
+
 }

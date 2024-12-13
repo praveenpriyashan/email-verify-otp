@@ -3,15 +3,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logout = exports.login = exports.register = void 0;
-const user_model_1 = __importDefault(require("../model/user.model"));
+exports.verifyEmail = exports.sendVerifyOtp = exports.logout = exports.login = exports.register = void 0;
 const validateEnv_1 = __importDefault(require("../util/validateEnv"));
 const http_errors_1 = __importDefault(require("http-errors"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const nodemailer_1 = require("../config/nodemailer");
 const dotenv_1 = __importDefault(require("dotenv"));
+const user_model_1 = __importDefault(require("../model/user.model"));
 dotenv_1.default.config();
+const envalid_1 = require("envalid");
 const register = async (req, res, next) => {
     const { name, email, password } = req.body;
     try {
@@ -53,17 +54,12 @@ const register = async (req, res, next) => {
             text: `
             Hi ${name} !
             wellcome to my email app !
+            your account has been created by email: ${email}
             `
         };
         console.log('sending email start');
-        try {
-            await nodemailer_1.transporter.sendMail(mailOption);
-            console.log('Email sent successfully');
-        }
-        catch (emailError) {
-            console.error('Failed to send email:', emailError);
-        }
-        console.log('sending  email end');
+        await nodemailer_1.transporter.sendMail(mailOption);
+        console.log('Email sent successfully');
         res.status(201).json({ success: true, user: newUser });
     }
     catch (e) {
@@ -128,4 +124,61 @@ const logout = async (req, res, next) => {
     }
 };
 exports.logout = logout;
+const sendVerifyOtp = async (req, res, next) => {
+    try {
+        const { userId } = req.body;
+        const user = await user_model_1.default.findById(userId);
+        if (!user) {
+            throw (0, http_errors_1.default)(404, 'User not found');
+        }
+        if (user.isAccountVerified) {
+            return res.json({ success: false, message: 'account already verified' });
+        }
+        const otp = String(Math.floor(100000 + Math.random() * 900000));
+        user.verifyOtp = otp;
+        user.verifyOtpExpAt = Date.now() + 1000 * 60 * 60 * 24;
+        await user.save();
+        const mailOption = {
+            from: process.env.SENDER_EMAIL,
+            to: user.email,
+            subject: 'Account verify otp',
+            text: `
+           your verification otp is ${otp}.verify your account using this otp
+            `
+        };
+        await nodemailer_1.transporter.sendMail(mailOption);
+        res.json({ success: true, message: `verification otp sent on ${user.email}` });
+    }
+    catch (e) {
+        next(e);
+    }
+};
+exports.sendVerifyOtp = sendVerifyOtp;
+const verifyEmail = async (req, res, next) => {
+    const { userId, otp } = req.body;
+    if (!userId || !otp) {
+        throw (0, http_errors_1.default)(400, 'missing required details');
+    }
+    try {
+        const user = await user_model_1.default.findById(userId);
+        if (!user) {
+            throw (0, http_errors_1.default)(404, 'user not found');
+        }
+        if (user.verifyOtp === '' || user.verifyOtp !== otp) {
+            throw (0, http_errors_1.default)(404, 'invalid otp');
+        }
+        if (user.verifyOtpExpAt < Date.now()) {
+            throw (0, http_errors_1.default)(404, ' OTP expired');
+        }
+        user.isAccountVerified = true;
+        user.verifyOtp = '';
+        user.verifyOtpExpAt = 0;
+        await user.save();
+        res.json({ success: true, message: `email : ${envalid_1.email} verified successfully` });
+    }
+    catch (e) {
+        next(e);
+    }
+};
+exports.verifyEmail = verifyEmail;
 //# sourceMappingURL=auth.controller.js.map
