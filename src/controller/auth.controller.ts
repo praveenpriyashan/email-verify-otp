@@ -23,6 +23,7 @@ interface IUser extends Document {
     resetOtpExpAt: number;
 }
 
+//user signup & send email
 export const register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const {name, email, password} = req.body;
     try {
@@ -79,6 +80,7 @@ export const register = async (req: Request, res: Response, next: NextFunction):
     }
 }
 
+//login the account
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     console.log('in the login function');
     const {email, password} = req.body;
@@ -123,6 +125,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
     }
 }
 
+//logout
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
         res.clearCookie('token', {
@@ -136,6 +139,7 @@ export const logout = async (req: Request, res: Response, next: NextFunction): P
     }
 }
 
+// create otp & send the user via email
 export const sendVerifyOtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     console.log('start the sent otp function')
     console.log('req.body:', req.body); // Check if the body has the expected data
@@ -163,7 +167,9 @@ export const sendVerifyOtp = async (req: Request, res: Response, next: NextFunct
             to: user.email,
             subject: 'Account verify otp',
             text: `
-           your verification otp is ${otp}.verify your account using this otp
+
+           your verification otp is ${otp}.verify your account using this otp.
+           This OTP is only valid for 24 hours.
             `
         }
         console.log('ready to sent otp message via email');
@@ -175,6 +181,7 @@ export const sendVerifyOtp = async (req: Request, res: Response, next: NextFunct
     }
 }
 
+//verify the email & send it email
 export const verifyEmail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const {userId, otp} = req.body;
     if (!userId || !otp) {
@@ -213,11 +220,13 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
             from: process.env.SENDER_EMAIL,
             to: user.email,
             subject: 'Account verified successfully',
-            text: `
-            Hi ${user.name} wellcome to FOOD CORNER
-            Your account has been verified successfully.
-            `
-        }
+            html: `
+        <b>Hi ${user.name}</b>,<br>
+        Welcome to FOOD CORNER!<br>
+        Your account has been verified successfully.
+    `
+        };
+
         await transporter.sendMail(mailOption);
         console.log('send the otp message via email');
         res.json({success: true, message: `email : ${user.email} verified successfully`})
@@ -226,11 +235,93 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
     }
 }
 
+//check whether user is authenticated
 export const isAuthenticate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-         res.json({success: true});
-         console.log('user is authenticated');
+        res.json({success: true});
+        console.log('user is authenticated');
     } catch (e) {
         next(e)
     }
 }
+
+//send password reset otp
+export const sendResetOtp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+        console.log('Request body:', req.body);
+        const {email} = req.body;
+
+        if (!email) {
+            console.log('Email is required in sendResetOtp function');
+            throw createHttpError(400, 'Email is required');
+        }
+        console.log('Provided email:', email);
+        const user = await UserModel.findOne({email}) as IUser;
+        if (!user) {
+            console.log('User not found');
+            throw createHttpError(400, 'User not found');
+        }
+        console.log('User found');
+        console.log(user);
+
+        console.log('start the create  reset otp');
+        const otp = String(Math.floor(100000 + Math.random() * 900000))
+        user.resetOtp = otp;
+        user.resetOtpExpAt = Date.now() + 1000 * 60 * 5;
+        console.log('after create reset otp,ready to user save db');
+        await user.save();
+        console.log('user saved successfully');
+        const mailOption = {
+            from: process.env.SENDER_EMAIL,
+            to: user.email,
+            subject: 'Password Reset OTP',
+            text: `
+           your reset otp is ${otp}.verify your account using this otp.
+           This OTP is only valid for 5 minites.
+            `
+        }
+        console.log('ready to sent reset otp message via email');
+        await transporter.sendMail(mailOption);
+        console.log('send the reset otp message via email');
+        res.json({success: true, message: `reset otp sent on ${user.email}`})
+    } catch (error) {
+        next(error);
+    }
+};
+
+export const resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const {email, otp, newPassword} = req.body;
+    if (!email || !otp || !newPassword) {
+        console.log('email, otp, and newPassword are required in resetPassword function');
+        throw createHttpError(400, 'Missing required details');
+    }
+    console.log(`
+      email=${email}
+      otp=${otp}
+      newPassword=${newPassword}
+      `)
+    const user = await UserModel.findOne({email}) as IUser;
+    if (!user) {
+        console.log('User not found');
+        throw createHttpError(400, 'User not found');
+    }
+    console.log('User found');
+    console.log(user);
+
+    if (user.resetOtp === '' || user.resetOtp !== otp) {
+        throw createHttpError(404, 'invalid reset otp')
+        console.log('invalid reset otp in verifyEmail function');
+    }
+    console.log('reset otp verify without expire date');
+    if (user.resetOtpExpAt < Date.now()) {
+        throw createHttpError(404, 'reset OTP expired')
+        console.log('OTP expired in verifyEmail function');
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password=hashedPassword;
+     user.resetOtp = '';
+    user.resetOtpExpAt = 0;
+    user.save();
+    res.json({success: true, message: `password reset successfully`})
+}
+
