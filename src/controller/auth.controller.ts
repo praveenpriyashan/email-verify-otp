@@ -6,13 +6,13 @@ import jwt from "jsonwebtoken";
 import {transporter} from "../config/nodemailer"
 import dotenv from 'dotenv';
 import UserModel from "../model/user.model";
-
+import {EMAIL_VERIFY_TEMPLATE,PASSWORD_RESET_TEMPLATE} from '../config/emailTemplate'
 import {Document} from 'mongoose';
 import {email} from "envalid";
 
 dotenv.config();
 
-interface IUser extends Document {
+export interface IUser extends Document {
     name: string;
     email: string;
     password: string;
@@ -120,6 +120,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
         });
         console.log('cookie create end');
         res.status(201).json({success: true, userExist});
+        console.log('login successful');
     } catch (e) {
         next(e)
     }
@@ -166,11 +167,12 @@ export const sendVerifyOtp = async (req: Request, res: Response, next: NextFunct
             from: process.env.SENDER_EMAIL,
             to: user.email,
             subject: 'Account verify otp',
-            text: `
+           //  text: `
+           // your verification otp is ${otp}.verify your account using this otp.
+           // This OTP is only valid for 24 hours.
+           //  `
+            html: EMAIL_VERIFY_TEMPLATE.replace("{{otp}}",otp).replace("{{email}}",user.email)
 
-           your verification otp is ${otp}.verify your account using this otp.
-           This OTP is only valid for 24 hours.
-            `
         }
         console.log('ready to sent otp message via email');
         await transporter.sendMail(mailOption);
@@ -220,11 +222,6 @@ export const verifyEmail = async (req: Request, res: Response, next: NextFunctio
             from: process.env.SENDER_EMAIL,
             to: user.email,
             subject: 'Account verified successfully',
-            html: `
-        <b>Hi ${user.name}</b>,<br>
-        Welcome to FOOD CORNER!<br>
-        Your account has been verified successfully.
-    `
         };
 
         await transporter.sendMail(mailOption);
@@ -275,10 +272,12 @@ export const sendResetOtp = async (req: Request, res: Response, next: NextFuncti
             from: process.env.SENDER_EMAIL,
             to: user.email,
             subject: 'Password Reset OTP',
-            text: `
-           your reset otp is ${otp}.verify your account using this otp.
-           This OTP is only valid for 5 minites.
-            `
+           //  text: `
+           // your reset otp is ${otp}.verify your account using this otp.
+           // This OTP is only valid for 5 minites.
+           //  `
+           html: PASSWORD_RESET_TEMPLATE.replace("{{otp}}",otp).replace("{{email}}",user.email)
+
         }
         console.log('ready to sent reset otp message via email');
         await transporter.sendMail(mailOption);
@@ -290,7 +289,13 @@ export const sendResetOtp = async (req: Request, res: Response, next: NextFuncti
 };
 
 export const resetPassword = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    console.log('inside the resetPassword function');
     const {email, otp, newPassword} = req.body;
+    console.log(`
+      email=${email}
+      otp=${otp}
+      newPassword=${newPassword}
+      `)
     if (!email || !otp || !newPassword) {
         console.log('email, otp, and newPassword are required in resetPassword function');
         throw createHttpError(400, 'Missing required details');
@@ -318,8 +323,8 @@ export const resetPassword = async (req: Request, res: Response, next: NextFunct
         console.log('OTP expired in verifyEmail function');
     }
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password=hashedPassword;
-     user.resetOtp = '';
+    user.password = hashedPassword;
+    user.resetOtp = '';
     user.resetOtpExpAt = 0;
     user.save();
     res.json({success: true, message: `password reset successfully`})

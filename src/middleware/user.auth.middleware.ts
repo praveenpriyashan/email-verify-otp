@@ -18,6 +18,7 @@ const userAuth = async (req: Request, res: Response, next: NextFunction) => {
         console.log('get token successfully')
         console.log(token)
         const tokenDecode = jwt.verify(token, validateEnv.JWT_SECRET);
+        console.log(' token decode successfully')
         if (typeof tokenDecode === "object" && "id" in tokenDecode) {
             req.body.userId = (tokenDecode as JwtPayload).id; // Explicit type cast
             console.log("in the userAuth middleware, get token,get tokenDecade,assign to userId of req");
